@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7fb">
+    <title>My Tasks - Task Management</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="{{ url_for('dashboard') }}" aria-label="Taskflow home">
+        <span class="brand-mark" aria-hidden="true">T</span>
+        <span>taskflow</span>
+    </a>
+    <div class="account">
+        <span class="welcome">Welcome back, <strong>{{ user_name }}</strong></span>
+        <form action="{{ url_for('logout') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="logout">Log out</button>
+        </form>
+    </div>
+</header>
+
+<main class="container">
+    <section class="page-heading">
+        <div>
+            <p class="eyebrow">YOUR WORKSPACE</p>
+            <h1>My tasks</h1>
+            <p class="subheading">A little progress each day adds up.</p>
+        </div>
+        <a class="primary-link" href="#add-task">＋ <span>New task</span></a>
+    </section>
+
+    {% with messages = get_flashed_messages() %}
+        {% for message in messages %}
+            <p class="message" role="status">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
+
+    {% set totals = namespace(pending=0, in_progress=0, completed=0) %}
+    {% for task in tasks %}
+        {% if task.status == 'Pending' %}
+            {% set totals.pending = totals.pending + 1 %}
+        {% elif task.status == 'In Progress' %}
+            {% set totals.in_progress = totals.in_progress + 1 %}
+        {% elif task.status == 'Completed' %}
+            {% set totals.completed = totals.completed + 1 %}
+        {% endif %}
+    {% endfor %}
+
+    <section class="overview" aria-label="Task overview">
+        <article class="overview-card">
+            <span class="overview-icon icon-total" aria-hidden="true">▦</span>
+            <div><p>Total tasks</p><strong>{{ tasks|length }}</strong></div>
+        </article>
+        <article class="overview-card">
+            <span class="overview-icon icon-pending" aria-hidden="true">◷</span>
+            <div><p>To do</p><strong>{{ totals.pending }}</strong></div>
+        </article>
+        <article class="overview-card">
+            <span class="overview-icon icon-progress" aria-hidden="true">↗</span>
+            <div><p>In progress</p><strong>{{ totals.in_progress }}</strong></div>
+        </article>
+        <article class="overview-card">
+            <span class="overview-icon icon-completed" aria-hidden="true">✓</span>
+            <div><p>Completed</p><strong>{{ totals.completed }}</strong></div>
+        </article>
+    </section>
+
+    <section class="add-section" id="add-task">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">GET IT OUT OF YOUR HEAD</p>
+                <h2>Add a task</h2>
+            </div>
+        </div>
+        <form action="{{ url_for('add_task') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="form-grid">
+                <div class="field field-title">
+                    <label for="new-title">Task title</label>
+                    <input id="new-title" type="text" name="title" maxlength="200"
+                           placeholder="e.g. Prepare project proposal" required>
+                </div>
+                <div class="field">
+                    <label for="new-due-date">Due date <span class="optional">(optional)</span></label>
+                    <input id="new-due-date" type="date" name="due_date">
+                </div>
+                <div class="field field-description">
+                    <label for="new-description">Notes <span class="optional">(optional)</span></label>
+                    <textarea id="new-description" name="description"
+                              placeholder="Add a few details to help you get started"></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="primary-button">Add task <span aria-hidden="true">→</span></button>
+            </div>
+        </form>
+    </section>
+
+    <section class="tasks-section">
+        <div class="tasks-heading">
+            <div>
+                <p class="eyebrow">YOUR LIST</p>
+                <h2>All tasks <span class="task-count">{{ tasks|length }}</span></h2>
+            </div>
+            {% if tasks %}
+                <div class="task-controls">
+                    <label class="search-field">
+                        <span class="visually-hidden">Search tasks</span>
+                        <span aria-hidden="true">⌕</span>
+                        <input id="task-search" type="search" placeholder="Search tasks">
+                    </label>
+                    <label class="visually-hidden" for="status-filter">Filter tasks by status</label>
+                    <select id="status-filter" class="status-filter">
+                        <option value="all">All statuses</option>
+                        <option value="Pending">To do</option>
+                        <option value="In Progress">In progress</option>
+                        <option value="Completed">Completed</option>
+                    </select>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="task-list">
+            {% for task in tasks %}
+                <article class="task-card" data-status="{{ task.status }}"
+                         data-search="{{ (task.title ~ ' ' ~ (task.description or ''))|lower }}">
+                    <div class="task-card-heading">
+                        <span class="status status-{{ task.status|lower|replace(' ', '-') }}">
+                            <span class="status-dot" aria-hidden="true"></span>{{ task.status }}
+                        </span>
+                        <details class="task-menu">
+                            <summary aria-label="Edit {{ task.title }}">Edit</summary>
+                            <div class="edit-panel">
+                                <h3>Edit task</h3>
+                                <form action="{{ url_for('update_task', task_id=task.id) }}"
+                                      method="post">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <label for="title-{{ task.id }}">Task title</label>
+                                    <input id="title-{{ task.id }}" type="text" name="title"
+                                           value="{{ task.title }}" maxlength="200" required>
+
+                                    <label for="description-{{ task.id }}">Notes</label>
+                                    <textarea id="description-{{ task.id }}"
+                                              name="description">{{ task.description or '' }}</textarea>
+
+                                    <label for="due-date-{{ task.id }}">Due date</label>
+                                    <input id="due-date-{{ task.id }}" type="date" name="due_date"
+                                           value="{{ task.due_date or '' }}">
+
+                                    <label for="status-{{ task.id }}">Status</label>
+                                    <select id="status-{{ task.id }}" name="status">
+                                        {% for status in ('Pending', 'In Progress', 'Completed') %}
+                                            <option value="{{ status }}"
+                                                {% if task.status == status %}selected{% endif %}>
+                                                {{ status }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+
+                                    <button type="submit" class="primary-button">Save changes</button>
+                                </form>
+                            </div>
+                        </details>
+                    </div>
+                    <h3>{{ task.title }}</h3>
+                    {% if task.description %}
+                        <p class="task-description">{{ task.description }}</p>
+                    {% else %}
+                        <p class="task-description task-description-placeholder">No notes added.</p>
+                    {% endif %}
+                    <div class="task-footer">
+                        <p class="due-date {% if task.due_date and task.due_date < today and task.status != 'Completed' %}overdue{% endif %}">
+                            <span aria-hidden="true">▣</span>
+                            {% if task.due_date %}
+                                <time datetime="{{ task.due_date.isoformat() }}">
+                                    {% if task.due_date == today %}Due today
+                                    {% else %}{{ task.due_date.strftime('%b %d, %Y') }}{% endif %}
+                                </time>
+                            {% else %}
+                                <span>No due date</span>
+                            {% endif %}
+                            {% if task.due_date and task.due_date < today and task.status != 'Completed' %}
+                                <span class="overdue-label">Overdue</span>
+                            {% endif %}
+                        </p>
+                        <form action="{{ url_for('delete_task', task_id=task.id) }}"
+                              method="post" class="delete-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="delete-btn" aria-label="Delete {{ task.title }}">Delete</button>
+                        </form>
+                    </div>
+                </article>
+            {% else %}
+                <div class="empty-state">
+                    <span class="empty-icon" aria-hidden="true">✦</span>
+                    <h3>Your next big thing starts here.</h3>
+                    <p>Add a task above and keep everything moving.</p>
+                    <a href="#add-task" class="text-link">Create your first task <span aria-hidden="true">↑</span></a>
+                </div>
+            {% endfor %}
+        </div>
+        {% if tasks %}
+            <p id="no-search-results" class="empty-filter" hidden>No tasks match your search.</p>
+        {% endif %}
+    </section>
+</main>
+
+<script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</body>
+</html>
