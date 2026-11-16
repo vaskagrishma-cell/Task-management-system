@@ -18,7 +18,7 @@ def _connection_settings():
 def get_db_connection():
     return mysql.connector.connect(
         **_connection_settings(),
-        database="task_management_db"
+        database=os.getenv("MYSQL_DATABASE", "task_management_db")
     )
 
 
