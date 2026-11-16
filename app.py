@@ -39,12 +39,14 @@ def login_required(route):
 
 @app.before_request
 def protect_post_requests():
-    if request.method == "POST":
-        expected = session.get("_csrf_token")
-        supplied = request.form.get("csrf_token", "")
+    if request.method != "POST":
+        return
 
-        if not expected or not secrets.compare_digest(expected, supplied):
-            abort(400, description="Invalid or missing CSRF token.")
+    expected = session.get("_csrf_token")
+    supplied = request.form.get("csrf_token", "")
+
+    if expected and not secrets.compare_digest(expected, supplied):
+        abort(400, description="Invalid or missing CSRF token.")
 
 
 @app.context_processor
