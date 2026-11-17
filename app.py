@@ -1,11 +1,11 @@
 
 import os
 import secrets
+import sqlite3
 from datetime import date
 from functools import wraps
 
 from dotenv import load_dotenv
-
 load_dotenv()
 
 import mysql.connector
@@ -67,6 +67,13 @@ def parse_due_date(value):
         return None
 
 
+def get_db_cursor(connection):
+    if isinstance(connection, sqlite3.Connection):
+        return connection.cursor()
+
+    return connection.cursor(dictionary=True)
+
+
 @app.route("/")
 def home():
     if "user_id" in session:
@@ -105,7 +112,7 @@ def register():
     try:
         cursor.execute(
             """
-            INSERT INTO users (name, email, password)
+            INSERT INTO users (username, email, password)
             VALUES (%s, %s, %s)
             """,
             (name, email, generate_password_hash(password))
@@ -114,7 +121,7 @@ def register():
         connection.commit()
         user_id = cursor.lastrowid
 
-    except mysql.connector.IntegrityError:
+    except (mysql.connector.IntegrityError, sqlite3.IntegrityError):
         connection.rollback()
         flash("An account with that email already exists.")
         return redirect(url_for("register"))
@@ -142,12 +149,12 @@ def login():
     password = request.form.get("password", "")
 
     connection = get_db_connection()
-    cursor = connection.cursor(dictionary=True)
+    cursor = get_db_cursor(connection)
 
     try:
         cursor.execute(
             """
-            SELECT id, name, password
+            SELECT id, username, password
             FROM users
             WHERE email = %s
             """,
@@ -166,7 +173,7 @@ def login():
 
     session.clear()
     session["user_id"] = user["id"]
-    session["user_name"] = user["name"]
+    session["user_name"] = user["username"]
 
     return redirect(url_for("dashboard"))
 
@@ -181,7 +188,7 @@ def logout():
 @login_required
 def dashboard():
     connection = get_db_connection()
-    cursor = connection.cursor(dictionary=True)
+    cursor = get_db_cursor(connection)
 
     try:
         cursor.execute(
@@ -249,7 +256,6 @@ def add_task():
         connection.close()
 
     flash("Task added successfully.")
-
     return redirect(url_for("dashboard"))
 
 

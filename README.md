@@ -26,7 +26,9 @@ A simple Task Management Application developed using Python, Flask, and MySQL.
 
    pip install -r requirements.txt
 
-2. Configure MySQL credentials in the `.env` file.
+2. Configure MySQL credentials in the `.env` file. For Aiven, download the
+   service CA certificate, save it as `ca.pem` in the project folder, and set
+   `MYSQL_SSL_CA=ca.pem`.
 
 3. Create the database and tables.
 

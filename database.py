@@ -1,39 +1,39 @@
 
 import os
+from pathlib import Path
+
 import mysql.connector
 from dotenv import load_dotenv
 
-load_dotenv()
-
-
-def _connection_settings():
-    return {
-        "host": os.getenv("MYSQL_HOST", "localhost"),
-        "user": os.getenv("MYSQL_USER", "root"),
-        "password": os.getenv("MYSQL_PASSWORD", ""),
-        "port": int(os.getenv("MYSQL_PORT", "3306")),
-    }
-
+ENV_FILE = Path(__file__).resolve().with_name(".env")
+load_dotenv(ENV_FILE)
 
 def get_db_connection():
+    ca_file = os.getenv("MYSQL_SSL_CA", "").strip()
+    if not ca_file:
+        raise ValueError("MYSQL_SSL_CA is missing from the .env file.")
+
+    ca_path = Path(ca_file)
+    if not ca_path.is_absolute():
+        ca_path = ENV_FILE.parent / ca_path
+    if not ca_path.is_file():
+        raise FileNotFoundError(
+            f"MySQL CA certificate not found: {ca_path}. "
+            "Download the CA certificate from Aiven and save it at this path."
+        )
+
     return mysql.connector.connect(
-        **_connection_settings(),
-        database=os.getenv("MYSQL_DATABASE", "task_management_db")
+        host=os.getenv("MYSQL_HOST"),
+        user=os.getenv("MYSQL_USER"),
+        password=os.getenv("MYSQL_PASSWORD"),
+        port=int(os.getenv("MYSQL_PORT", "17911")),
+        database=os.getenv("MYSQL_DATABASE", "defaultdb"),
+        ssl_ca=str(ca_path),
+        ssl_verify_cert=True,
+        ssl_verify_identity=True
     )
 
-
 def init_db():
-    connection = mysql.connector.connect(**_connection_settings())
-
-    try:
-        cursor = connection.cursor()
-        cursor.execute(
-            "CREATE DATABASE IF NOT EXISTS task_management_db"
-        )
-        cursor.close()
-    finally:
-        connection.close()
-
     connection = get_db_connection()
 
     try:
